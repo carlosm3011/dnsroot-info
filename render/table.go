@@ -55,7 +55,7 @@ func FormatTable(results []query.Result, opts Options, meta Meta) string {
 		writeRow(&sb, row, widths, true)
 	}
 	if !meta.isZero() {
-		fmt.Fprintf(&sb, "%s\n", meta.footerString())
+		fmt.Fprintf(&sb, "\n%s\n", meta.footerString())
 	}
 	return sb.String()
 }
