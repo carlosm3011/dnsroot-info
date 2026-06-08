@@ -20,12 +20,19 @@ type RealQuerier struct {
 }
 
 func (q *RealQuerier) QueryCHAOS(serverAddr string) (string, time.Duration, error) {
+	if instance, rtt, err := q.queryCHAOSName(serverAddr, "hostname.bind."); err == nil {
+		return instance, rtt, nil
+	}
+	return q.queryCHAOSName(serverAddr, "id.server.")
+}
+
+func (q *RealQuerier) queryCHAOSName(serverAddr, name string) (string, time.Duration, error) {
 	c := &mdns.Client{
 		Net:     "udp",
 		Timeout: q.Timeout,
 	}
 	m := new(mdns.Msg)
-	m.SetQuestion("hostname.bind.", mdns.TypeTXT)
+	m.SetQuestion(name, mdns.TypeTXT)
 	m.Question[0].Qclass = mdns.ClassCHAOS
 	m.RecursionDesired = false
 
