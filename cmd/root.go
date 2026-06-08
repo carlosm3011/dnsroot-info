@@ -27,7 +27,7 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "rootinfo",
-	Short: "Check DNS root server anycast instance status\n(c) Carlos Martinez-Cagnazzo May 2026\nVersion: 0.1\n",
+	Short: fmt.Sprintf("Check DNS root server anycast instance status\n(c) Carlos Martinez-Cagnazzo May 2026\nVersion: %s\n", Version),
 	RunE:  run,
 }
 
