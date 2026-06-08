@@ -1,6 +1,6 @@
 # rootinfo
 
-A command-line tool for checking the status of the DNS root servers, inspired by [MTR](https://www.bitwizard.nl/mtr/). For each of the 13 root servers (A–M), `rootinfo` queries the anycast instance name via a `CHAOS TXT hostname.bind` DNS query and displays the results in a formatted table, including the round-trip time for each query.
+A command-line tool for checking the status of the DNS root servers, inspired by [MTR](https://www.bitwizard.nl/mtr/). For each of the 13 root servers (A–M), `rootinfo` queries the anycast instance name via `CHAOS TXT` DNS queries (`hostname.bind`, with `id.server` as a fallback) and displays the results in a formatted table, including the round-trip time for each query.
 
 ```
 SRV | IPv4          | IPv4 Result                | IPv4 RTT | IPv6                | IPv6 Result                | IPv6 RTT
@@ -89,7 +89,21 @@ Each JSON object includes `ipv4_rtt_ms` and `ipv6_rtt_ms` fields (omitted on err
 
 ## How it works
 
-Each query is a `CHAOS TXT hostname.bind` DNS request sent directly to the known IPv4 and IPv6 address of each root server. Because root servers use anycast, the response reveals which physical node answered — not just which letter. The round-trip time is the time measured by the DNS client for each individual query. All 26 IPv4+IPv6 queries for the 13 servers run concurrently.
+For each server, `rootinfo` first tries a `CHAOS TXT hostname.bind` query:
+
+```
+dig CHAOS TXT hostname.bind @<root-server-ip>
+```
+
+If that query fails (timeout, REFUSED, or no TXT record in the response), it falls back to `id.server`:
+
+```
+dig CHAOS TXT id.server @<root-server-ip>
+```
+
+Some root servers (G is a known example) do not respond to `hostname.bind` but do answer `id.server`. The RTT reported is from whichever query succeeded.
+
+Because root servers use anycast, the instance name in the response reveals which physical node answered — not just which letter. All 26 IPv4+IPv6 queries for the 13 servers run concurrently.
 
 ## Stack
 
