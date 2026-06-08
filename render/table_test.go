@@ -104,3 +104,48 @@ func TestFormatTable_separators(t *testing.T) {
 		t.Errorf("expected | column separators, got:\n%s", out)
 	}
 }
+
+func TestFormatTable_separatorLine(t *testing.T) {
+	results := []query.Result{
+		makeResult("A", "198.41.0.4", "2001:503:ba3e::2:30", "a1-iad", "a1-lax", nil, nil),
+	}
+	out := FormatTable(results, bothOpts)
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	if len(lines) < 3 {
+		t.Fatalf("expected at least 3 lines (header, separator, data), got %d", len(lines))
+	}
+	sep := lines[1]
+	if !strings.Contains(sep, "-") {
+		t.Errorf("separator line missing hyphens: %q", sep)
+	}
+	if !strings.Contains(sep, "+") {
+		t.Errorf("separator line missing plus signs: %q", sep)
+	}
+	// Separator must not contain letters or pipe characters.
+	for _, c := range sep {
+		if c == '|' {
+			t.Errorf("separator line should use + not |: %q", sep)
+			break
+		}
+	}
+}
+
+func TestFormatTable_separatorAlignsWithPipes(t *testing.T) {
+	results := []query.Result{
+		makeResult("A", "198.41.0.4", "2001:503:ba3e::2:30", "a1-iad", "a1-lax", nil, nil),
+	}
+	out := FormatTable(results, bothOpts)
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	header := lines[0]
+	sep := lines[1]
+
+	// Every '|' in the header must align with a '+' in the separator.
+	for i, c := range header {
+		if c == '|' {
+			if i >= len(sep) || sep[i] != '+' {
+				t.Errorf("position %d: header has '|' but separator has %q\nheader: %s\nsep:    %s",
+					i, sep[i], header, sep)
+			}
+		}
+	}
+}
