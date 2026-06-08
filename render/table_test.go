@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"rootinfo/query"
 	"rootinfo/rootservers"
@@ -17,8 +18,10 @@ func makeResult(letter, ipv4, ipv6, v4res, v6res string, v4err, v6err error) que
 	return query.Result{
 		Server:     rootservers.Server{Letter: letter, IPv4: ipv4, IPv6: ipv6},
 		IPv4Result: v4res,
+		IPv4RTT:    12 * time.Millisecond,
 		IPv4Err:    v4err,
 		IPv6Result: v6res,
+		IPv6RTT:    9 * time.Millisecond,
 		IPv6Err:    v6err,
 	}
 }
@@ -127,6 +130,45 @@ func TestFormatTable_separatorLine(t *testing.T) {
 			t.Errorf("separator line should use + not |: %q", sep)
 			break
 		}
+	}
+}
+
+func TestFormatTable_rttDisplayed(t *testing.T) {
+	results := []query.Result{
+		makeResult("A", "198.41.0.4", "2001:503:ba3e::2:30", "a1-iad", "a1-lax", nil, nil),
+	}
+	out := FormatTable(results, bothOpts)
+	if !strings.Contains(out, "12ms") {
+		t.Errorf("expected IPv4 RTT '12ms' in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "9ms") {
+		t.Errorf("expected IPv6 RTT '9ms' in output, got:\n%s", out)
+	}
+}
+
+func TestFormatTable_rttDashOnError(t *testing.T) {
+	results := []query.Result{
+		makeResult("A", "198.41.0.4", "2001:503:ba3e::2:30", "", "", errors.New("i/o timeout"), errors.New("i/o timeout")),
+	}
+	out := FormatTable(results, bothOpts)
+	// RTT columns should show "-" and no "ms" values when queries failed.
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	dataLine := lines[len(lines)-1]
+	if strings.Contains(dataLine, "ms") {
+		t.Errorf("expected no RTT values on error row, got:\n%s", dataLine)
+	}
+	if strings.Count(dataLine, "| -") < 2 {
+		t.Errorf("expected 2 RTT dash placeholders on error row, got:\n%s", dataLine)
+	}
+}
+
+func TestFormatTable_rttHeader(t *testing.T) {
+	out := FormatTable(nil, bothOpts)
+	if !strings.Contains(out, "IPv4 RTT") {
+		t.Errorf("missing IPv4 RTT header, got:\n%s", out)
+	}
+	if !strings.Contains(out, "IPv6 RTT") {
+		t.Errorf("missing IPv6 RTT header, got:\n%s", out)
 	}
 }
 

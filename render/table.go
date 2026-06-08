@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"rootinfo/query"
 )
@@ -50,24 +51,31 @@ func Table(w io.Writer, results []query.Result, opts Options) {
 func buildColumns(results []query.Result, opts Options) ([]string, [][]string) {
 	headers := []string{"SRV"}
 	if opts.ShowIPv4 {
-		headers = append(headers, "IPv4", "IPv4 Result")
+		headers = append(headers, "IPv4", "IPv4 Result", "IPv4 RTT")
 	}
 	if opts.ShowIPv6 {
-		headers = append(headers, "IPv6", "IPv6 Result")
+		headers = append(headers, "IPv6", "IPv6 Result", "IPv6 RTT")
 	}
 
 	rows := make([][]string, len(results))
 	for i, r := range results {
 		row := []string{r.Server.Letter}
 		if opts.ShowIPv4 {
-			row = append(row, r.Server.IPv4, fmtResult(r.IPv4Result, r.IPv4Err))
+			row = append(row, r.Server.IPv4, fmtResult(r.IPv4Result, r.IPv4Err), fmtRTT(r.IPv4RTT, r.IPv4Err))
 		}
 		if opts.ShowIPv6 {
-			row = append(row, r.Server.IPv6, fmtResult(r.IPv6Result, r.IPv6Err))
+			row = append(row, r.Server.IPv6, fmtResult(r.IPv6Result, r.IPv6Err), fmtRTT(r.IPv6RTT, r.IPv6Err))
 		}
 		rows[i] = row
 	}
 	return headers, rows
+}
+
+func fmtRTT(rtt time.Duration, err error) string {
+	if err != nil {
+		return "-"
+	}
+	return fmt.Sprintf("%dms", rtt.Milliseconds())
 }
 
 // writeRow emits one row, left-padding all columns except the last.

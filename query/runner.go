@@ -2,17 +2,20 @@ package query
 
 import (
 	"sync"
+	"time"
 
 	dnsq "rootinfo/dns"
 	"rootinfo/rootservers"
 )
 
-// Result holds the queried instance names for one root server.
+// Result holds the queried instance names and round-trip times for one root server.
 type Result struct {
 	Server     rootservers.Server
 	IPv4Result string
+	IPv4RTT    time.Duration
 	IPv4Err    error
 	IPv6Result string
+	IPv6RTT    time.Duration
 	IPv6Err    error
 }
 
@@ -49,11 +52,11 @@ func (r *Runner) queryServer(srv rootservers.Server) Result {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		res.IPv4Result, res.IPv4Err = r.Querier.QueryCHAOS(v4target)
+		res.IPv4Result, res.IPv4RTT, res.IPv4Err = r.Querier.QueryCHAOS(v4target)
 	}()
 	go func() {
 		defer wg.Done()
-		res.IPv6Result, res.IPv6Err = r.Querier.QueryCHAOS(v6target)
+		res.IPv6Result, res.IPv6RTT, res.IPv6Err = r.Querier.QueryCHAOS(v6target)
 	}()
 	wg.Wait()
 	return res

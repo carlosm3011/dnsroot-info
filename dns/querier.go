@@ -10,7 +10,7 @@ import (
 
 // Querier sends a CHAOS TXT query to a given server address.
 type Querier interface {
-	QueryCHAOS(serverAddr string) (string, error)
+	QueryCHAOS(serverAddr string) (instance string, rtt time.Duration, err error)
 }
 
 // RealQuerier implements Querier using miekg/dns, querying hostname.bind CH TXT
@@ -19,7 +19,7 @@ type RealQuerier struct {
 	Timeout time.Duration
 }
 
-func (q *RealQuerier) QueryCHAOS(serverAddr string) (string, error) {
+func (q *RealQuerier) QueryCHAOS(serverAddr string) (string, time.Duration, error) {
 	c := &mdns.Client{
 		Net:     "udp",
 		Timeout: q.Timeout,
@@ -29,17 +29,17 @@ func (q *RealQuerier) QueryCHAOS(serverAddr string) (string, error) {
 	m.Question[0].Qclass = mdns.ClassCHAOS
 	m.RecursionDesired = false
 
-	resp, _, err := c.Exchange(m, net.JoinHostPort(serverAddr, "53"))
+	resp, rtt, err := c.Exchange(m, net.JoinHostPort(serverAddr, "53"))
 	if err != nil {
-		return "", err
+		return "", rtt, err
 	}
 	if resp.Rcode != mdns.RcodeSuccess {
-		return "", fmt.Errorf("rcode %s", mdns.RcodeToString[resp.Rcode])
+		return "", rtt, fmt.Errorf("rcode %s", mdns.RcodeToString[resp.Rcode])
 	}
 	for _, rr := range resp.Answer {
 		if txt, ok := rr.(*mdns.TXT); ok && len(txt.Txt) > 0 {
-			return txt.Txt[0], nil
+			return txt.Txt[0], rtt, nil
 		}
 	}
-	return "", fmt.Errorf("no TXT record in response")
+	return "", rtt, fmt.Errorf("no TXT record in response")
 }
