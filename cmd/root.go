@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -68,6 +69,7 @@ func run(cmd *cobra.Command, args []string) error {
 		Author:    "Carlos Martinez-Cagnazzo",
 		Version:   Version,
 		BuildDate: BuildDate,
+		Arch:      runtime.GOARCH,
 	}
 
 	runner := &query.Runner{

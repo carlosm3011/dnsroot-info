@@ -15,19 +15,20 @@ type Options struct {
 	ShowIPv6 bool
 }
 
-// Meta carries author/version/build-date for footer and JSON metadata fields.
+// Meta carries author/version/build-date/arch for footer and JSON metadata fields.
 type Meta struct {
 	Author    string
 	Version   string
 	BuildDate string
+	Arch      string
 }
 
 func (m Meta) isZero() bool {
-	return m.Author == "" && m.Version == "" && m.BuildDate == ""
+	return m.Author == "" && m.Version == "" && m.BuildDate == "" && m.Arch == ""
 }
 
 func (m Meta) footerString() string {
-	return fmt.Sprintf("(c) %s | rootinfo v%s | Built: %s", m.Author, m.Version, m.BuildDate)
+	return fmt.Sprintf("(c) %s | rootinfo v%s | Built: %s | %s", m.Author, m.Version, m.BuildDate, m.Arch)
 }
 
 // FormatTable renders results as a justified text table with | column separators

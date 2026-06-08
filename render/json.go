@@ -25,6 +25,7 @@ type jsonMeta struct {
 	Author    string `json:"author,omitempty"`
 	Version   string `json:"version,omitempty"`
 	BuildDate string `json:"build_date,omitempty"`
+	Arch      string `json:"arch,omitempty"`
 }
 
 type jsonOutput struct {
@@ -39,7 +40,7 @@ func JSON(w io.Writer, results []query.Result, refresh int, meta Meta) {
 	out := jsonOutput{
 		Timestamp: time.Now().UTC(),
 		Refresh:   refresh,
-		Meta:      jsonMeta{Author: meta.Author, Version: meta.Version, BuildDate: meta.BuildDate},
+		Meta:      jsonMeta{Author: meta.Author, Version: meta.Version, BuildDate: meta.BuildDate, Arch: meta.Arch},
 		Servers:   make([]jsonServer, len(results)),
 	}
 	for i, r := range results {

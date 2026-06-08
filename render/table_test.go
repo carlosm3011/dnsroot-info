@@ -176,7 +176,7 @@ func TestFormatTable_footer(t *testing.T) {
 	results := []query.Result{
 		makeResult("A", "198.41.0.4", "2001:503:ba3e::2:30", "a1-iad", "a1-lax", nil, nil),
 	}
-	meta := Meta{Author: "Test Author", Version: "1.0", BuildDate: "2026-01-01"}
+	meta := Meta{Author: "Test Author", Version: "1.0", BuildDate: "2026-01-01", Arch: "arm64"}
 	out := FormatTable(results, bothOpts, meta)
 	if !strings.Contains(out, "Test Author") {
 		t.Errorf("footer missing author, got:\n%s", out)
@@ -186,6 +186,9 @@ func TestFormatTable_footer(t *testing.T) {
 	}
 	if !strings.Contains(out, "2026-01-01") {
 		t.Errorf("footer missing build date, got:\n%s", out)
+	}
+	if !strings.Contains(out, "arm64") {
+		t.Errorf("footer missing arch, got:\n%s", out)
 	}
 }
 
