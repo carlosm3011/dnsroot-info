@@ -64,6 +64,12 @@ func run(cmd *cobra.Command, args []string) error {
 		ShowIPv6: !ipv4Only,
 	}
 
+	meta := render.Meta{
+		Author:    "Carlos Martinez-Cagnazzo",
+		Version:   Version,
+		BuildDate: BuildDate,
+	}
+
 	runner := &query.Runner{
 		Querier:   &dnsq.RealQuerier{Timeout: time.Duration(timeoutMs) * time.Millisecond},
 		Servers:   servers,
@@ -73,9 +79,9 @@ func run(cmd *cobra.Command, args []string) error {
 	if interval == 0 {
 		results := runner.Run()
 		if jsonOutput {
-			render.JSON(os.Stdout, results, 1)
+			render.JSON(os.Stdout, results, 1, meta)
 		} else {
-			render.Table(os.Stdout, results, opts)
+			render.Table(os.Stdout, results, opts, meta)
 		}
 		return nil
 	}
@@ -85,6 +91,7 @@ func run(cmd *cobra.Command, args []string) error {
 		Interval: time.Duration(interval) * time.Second,
 		MaxCount: count,
 		Opts:     opts,
+		Meta:     meta,
 	}
 
 	if jsonOutput {
@@ -100,7 +107,7 @@ func runJSONContinuous(runner *query.Runner, cfg render.TUIConfig) error {
 	for {
 		n++
 		results := runner.Run()
-		render.JSON(os.Stdout, results, n)
+		render.JSON(os.Stdout, results, n, cfg.Meta)
 		if cfg.MaxCount > 0 && n >= cfg.MaxCount {
 			return nil
 		}

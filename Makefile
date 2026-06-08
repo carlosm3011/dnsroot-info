@@ -1,7 +1,8 @@
-BINARY  := rootinfo
-VERSION := 0.2
-GO      := go
-LDFLAGS := -ldflags="-s -w -X rootinfo/cmd.Version=$(VERSION)"
+BINARY     := rootinfo
+VERSION    := 0.2
+BUILD_DATE := $(shell date -u +%Y-%m-%d)
+GO         := go
+LDFLAGS    := -ldflags="-s -w -X rootinfo/cmd.Version=$(VERSION) -X rootinfo/cmd.BuildDate=$(BUILD_DATE)"
 
 .PHONY: build test lint clean
 

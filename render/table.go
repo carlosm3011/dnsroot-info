@@ -15,9 +15,24 @@ type Options struct {
 	ShowIPv6 bool
 }
 
+// Meta carries author/version/build-date for footer and JSON metadata fields.
+type Meta struct {
+	Author    string
+	Version   string
+	BuildDate string
+}
+
+func (m Meta) isZero() bool {
+	return m.Author == "" && m.Version == "" && m.BuildDate == ""
+}
+
+func (m Meta) footerString() string {
+	return fmt.Sprintf("(c) %s | rootinfo v%s | Built: %s", m.Author, m.Version, m.BuildDate)
+}
+
 // FormatTable renders results as a justified text table with | column separators
 // and a separator line of hyphens and plus signs after the header.
-func FormatTable(results []query.Result, opts Options) string {
+func FormatTable(results []query.Result, opts Options, meta Meta) string {
 	headers, rows := buildColumns(results, opts)
 
 	// Compute the max width of each column across header and all data rows.
@@ -39,12 +54,15 @@ func FormatTable(results []query.Result, opts Options) string {
 	for _, row := range rows {
 		writeRow(&sb, row, widths, true)
 	}
+	if !meta.isZero() {
+		fmt.Fprintf(&sb, "%s\n", meta.footerString())
+	}
 	return sb.String()
 }
 
 // Table writes the formatted table to w.
-func Table(w io.Writer, results []query.Result, opts Options) {
-	fmt.Fprint(w, FormatTable(results, opts))
+func Table(w io.Writer, results []query.Result, opts Options, meta Meta) {
+	fmt.Fprint(w, FormatTable(results, opts, meta))
 }
 
 // buildColumns returns the header slice and one string-slice per data row.

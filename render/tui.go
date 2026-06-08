@@ -18,6 +18,7 @@ type TUIConfig struct {
 	Interval time.Duration
 	MaxCount int
 	Opts     Options
+	Meta     Meta
 }
 
 type tuiModel struct {
@@ -71,7 +72,7 @@ func (m tuiModel) View() string {
 	if len(m.results) == 0 {
 		return header
 	}
-	return header + FormatTable(m.results, m.cfg.Opts)
+	return header + FormatTable(m.results, m.cfg.Opts, m.cfg.Meta)
 }
 
 func runQueryCmd(runner *query.Runner) tea.Cmd {

@@ -21,17 +21,25 @@ type jsonServer struct {
 	IPv6Error  string `json:"ipv6_error,omitempty"`
 }
 
+type jsonMeta struct {
+	Author    string `json:"author,omitempty"`
+	Version   string `json:"version,omitempty"`
+	BuildDate string `json:"build_date,omitempty"`
+}
+
 type jsonOutput struct {
 	Timestamp time.Time    `json:"timestamp"`
 	Refresh   int          `json:"refresh"`
+	Meta      jsonMeta     `json:"meta,omitempty"`
 	Servers   []jsonServer `json:"servers"`
 }
 
 // JSON writes one newline-delimited JSON object for the given results to w.
-func JSON(w io.Writer, results []query.Result, refresh int) {
+func JSON(w io.Writer, results []query.Result, refresh int, meta Meta) {
 	out := jsonOutput{
 		Timestamp: time.Now().UTC(),
 		Refresh:   refresh,
+		Meta:      jsonMeta{Author: meta.Author, Version: meta.Version, BuildDate: meta.BuildDate},
 		Servers:   make([]jsonServer, len(results)),
 	}
 	for i, r := range results {
