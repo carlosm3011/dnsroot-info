@@ -1,26 +1,28 @@
 # rootinfo
 
-A command-line tool for checking the status of the DNS root servers, inspired by [MTR](https://www.bitwizard.nl/mtr/). For each of the 13 root servers (A–M), `rootinfo` queries the anycast instance name via a `CHAOS TXT hostname.bind` DNS query and displays the results in a formatted table.
+A command-line tool for checking the status of the DNS root servers, inspired by [MTR](https://www.bitwizard.nl/mtr/). For each of the 13 root servers (A–M), `rootinfo` queries the anycast instance name via a `CHAOS TXT hostname.bind` DNS query and displays the results in a formatted table, including the round-trip time for each query.
 
 ```
-SRV | IPv4          | IPv4 Result | IPv6                | IPv6 Result
-----+---------------+-------------+---------------------+------------
-A   | 198.41.0.4    | "nnn1-lon8" | 2001:503:ba3e::2:30 | "nnn1-lon8"
-B   | 170.247.170.2 | "b2-scl"    | 2801:1b8:10::b      | "b2-scl"
-C   | 192.33.4.12   | "dca1b.c.root-servers.org" | 2001:500:2::c | "dca1b.c.root-servers.org"
+SRV | IPv4          | IPv4 Result                | IPv4 RTT | IPv6                | IPv6 Result                | IPv6 RTT
+----+---------------+----------------------------+----------+---------------------+----------------------------+---------
+A   | 198.41.0.4    | "nnn1-lon8"                | 167ms    | 2001:503:ba3e::2:30 | "nnn1-lon8"                | 154ms
+B   | 170.247.170.2 | "b2-scl"                   | 44ms     | 2801:1b8:10::b      | "b2-scl"                   | 41ms
+C   | 192.33.4.12   | "dca1b.c.root-servers.org" | 146ms    | 2001:500:2::c       | "dca1b.c.root-servers.org" | 143ms
 ...
 ```
 
-This tells you which anycast node your machine is reaching for each root server — useful for network diagnostics, anycast reachability checks, and general curiosity about the DNS infrastructure you depend on.
+This tells you which anycast node your machine is reaching for each root server, and how long it took — useful for network diagnostics, anycast reachability checks, and general curiosity about the DNS infrastructure you depend on.
 
 ## Building
 
 Requires Go 1.22+.
 
 ```sh
-make        # produces ./rootinfo
+make        # produces ./rootinfo (stamped with current VERSION)
 make test   # run unit tests
 ```
+
+The version number is set via `VERSION` in the Makefile and stamped into the binary at build time. Running with `go run .` directly shows `dev`.
 
 ## Usage
 
@@ -64,6 +66,8 @@ Press `q` or `Ctrl-C` to quit.
 ./rootinfo -i 10 --json | jq .
 ```
 
+Each JSON object includes `ipv4_rtt_ms` and `ipv6_rtt_ms` fields (omitted on error).
+
 **Custom DNS server** — route all queries through a specific server instead of querying root server IPs directly:
 
 ```sh
@@ -85,7 +89,7 @@ Press `q` or `Ctrl-C` to quit.
 
 ## How it works
 
-Each query is a `CHAOS TXT hostname.bind` DNS request sent directly to the known IPv4 and IPv6 address of each root server. Because root servers use anycast, the response reveals which physical node answered — not just which letter. All 26 IPv4+IPv6 queries for the 13 servers run concurrently.
+Each query is a `CHAOS TXT hostname.bind` DNS request sent directly to the known IPv4 and IPv6 address of each root server. Because root servers use anycast, the response reveals which physical node answered — not just which letter. The round-trip time is the time measured by the DNS client for each individual query. All 26 IPv4+IPv6 queries for the 13 servers run concurrently.
 
 ## Stack
 

@@ -4,32 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`rootinfo` is a Go CLI tool that periodically checks the status of all DNS root servers and displays results in a formatted table, inspired by MTR (multitraceroute). It must produce a self-contained binary.
+`rootinfo` is a Go CLI tool that periodically checks the status of all DNS root servers and displays results in a formatted table, inspired by MTR (multitraceroute). It produces a self-contained binary.
 
 ## Build
 
 ```sh
-make          # build binary
+make          # build binary (stamps VERSION into the binary)
 make build    # explicit build
+make test     # run all unit tests
 ```
 
-When the Makefile and Go module are initialized, the binary should be built with `go build` targeting a single static binary.
-
-## Commands
-
-Once implemented:
-
-```sh
-./rootinfo          # run once and display table
-```
+To release a new version, update `VERSION` in the Makefile. The value is injected at build time via `-ldflags="-X rootinfo/cmd.Version=$(VERSION)"` into `cmd.Version` (`cmd/version.go`). Running with `go run .` without make shows `dev`.
 
 ## CLI Design
-
-### Invocation
-
-```
-rootinfo [flags]
-```
 
 ### Flags
 
@@ -38,8 +25,8 @@ rootinfo [flags]
 | `-i, --interval <sec>` | `0` | Refresh interval in seconds. `0` = run once and exit |
 | `-c, --count <n>` | `0` | Stop after n refreshes (`0` = unlimited) |
 | `-t, --timeout <ms>` | `2000` | Per-query DNS timeout in milliseconds |
-| `-4` | — | Show IPv4 column only |
-| `-6` | — | Show IPv6 column only |
+| `-4` | — | Show IPv4 columns only |
+| `-6` | — | Show IPv6 columns only |
 | `--json` | — | Emit newline-delimited JSON (one object per refresh) |
 | `--dns-server <addr>` | direct to root server IPs | Route all queries through this server |
 | `-s, --servers <list>` | all 13 | Comma-separated root server letters, case-insensitive (e.g. `I,K,M`) |
@@ -47,44 +34,71 @@ rootinfo [flags]
 ### Behavior modes
 
 - **One-shot** (`-i 0`, default): query all servers once, print table, exit.
-- **Continuous** (`-i <sec>`): full-screen TUI (like MTR), redraws table every interval until `Ctrl-C`.
+- **Continuous** (`-i <sec>`): full-screen TUI (like MTR), redraws every interval until `Ctrl-C` or `q`.
 - **Fixed count** (`-i <sec> -c <n>`): refresh n times then exit.
-
-### Output
-
-One-shot / JSON mode prints to stdout. Continuous mode takes over the terminal (full-screen TUI). Errors shown inline in the result column as `(timeout)` or `(error)`.
-
-```
-rootinfo v0.1  2026-06-08 15:04:05 UTC  (refresh #3, interval 5s)
-
-SRV  IPv4              IPv4 Result       IPv6                       IPv6 Result
-A    198.41.0.4        "nnn1-lon8"       2001:503:ba3e::2:30        "nnn1-frmrs-3"
-B    170.247.170.2     "b4-fra"          2801:168:10::b             "b3-fra"
-...
-M    202.12.27.33      "m1-nrt"          2001:dc3::35               "m1-nrt"
-```
-
-## Architecture
-
-The tool should:
-
-1. **DNS root server list** — hardcode the 13 root server letters (A–M) with their known IPv4 and IPv6 addresses.
-2. **CH TXT query** — for each server, issue a DNS `CH TXT hostname.bind` (or `id.server`) query to both the IPv4 and IPv6 addresses to retrieve the anycast instance name.
-3. **Output table** — render results as a justified text table with columns: `SRV | IPv4 | IPv4 Result | IPv6 | IPv6 Result`.
-
-### Stack
-
-- **Language**: Go
-- **DNS queries**: use a proper DNS client library (e.g., `github.com/miekg/dns`)
-- **CLI parsing**: use a CLI library appropriate for flags/options
-- **Build**: Makefile
+- **JSON continuous**: `--json -i <sec>` prints one JSON object per refresh to stdout (no TUI).
 
 ### Output format
 
 ```
-SRV | IPv4          | IPv4 Result    | IPv6                    | IPv6 Result
-A   | 198.41.0.4    | "nnn1-lon8"    | 2001:503:ba3e::2:30     | "nnn1-frmrs-3"
-B   | 170.247.170.2 | "b4-fra"       | 2801:168:10::b          | "b3-fra"
+SRV | IPv4          | IPv4 Result    | IPv4 RTT | IPv6                | IPv6 Result    | IPv6 RTT
+----+---------------+----------------+----------+---------------------+----------------+---------
+A   | 198.41.0.4    | "nnn1-lon8"    | 12ms     | 2001:503:ba3e::2:30 | "nnn1-lon8"    | 9ms
+B   | 170.247.170.2 | "b4-fra"       | 44ms     | 2801:1b8:10::b      | "b3-fra"       | 41ms
 ```
 
-All columns right-padded for alignment. Instance names shown as returned by the CH query (quoted strings).
+Columns are dynamically width-fitted to content. RTT shows `-` on error. Instance names are quoted as returned by the CH query.
+
+## Architecture
+
+### Package structure
+
+```
+rootinfo/
+├── main.go                  # entry point
+├── cmd/
+│   ├── root.go              # cobra CLI, flag wiring, mode dispatch
+│   └── version.go           # var Version = "dev" (overridden by ldflags)
+├── rootservers/
+│   └── rootservers.go       # hardcoded A-M data; Filter(letters) helper
+├── dns/
+│   └── querier.go           # Querier interface + RealQuerier (miekg/dns)
+├── query/
+│   └── runner.go            # Runner: parallel fan-out, Result struct
+└── render/
+    ├── table.go             # FormatTable(), Table() — manual width computation
+    ├── json.go              # JSON() — newline-delimited output
+    └── tui.go               # bubbletea model for continuous mode
+```
+
+### Key types
+
+**`dns.Querier` interface** — the main seam for testing:
+```go
+QueryCHAOS(serverAddr string) (instance string, rtt time.Duration, err error)
+```
+`RealQuerier` sends `hostname.bind CH TXT` directly to `serverAddr:53` via miekg/dns, which already measures RTT. Test stubs implement this interface with configurable responses, RTTs, and errors.
+
+**`query.Result`** — one row of data:
+```go
+type Result struct {
+    Server     rootservers.Server
+    IPv4Result string; IPv4RTT time.Duration; IPv4Err error
+    IPv6Result string; IPv6RTT time.Duration; IPv6Err error
+}
+```
+
+**`render.Options`** — controls which address families appear:
+```go
+type Options struct { ShowIPv4, ShowIPv6 bool }
+```
+
+### DNS mocking in tests
+
+Each test package defines a local `stubQuerier` struct with `responses`, `rtts`, and `errors` maps keyed by IP address. This avoids network calls in all unit tests. The interface change propagates: updating `Querier` requires updating all three stubs (in `dns/`, `query/`, `render/`).
+
+### Stack
+
+- **[miekg/dns](https://github.com/miekg/dns)** — DNS queries
+- **[spf13/cobra](https://github.com/spf13/cobra)** — CLI parsing
+- **[charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea)** — TUI
