@@ -12,8 +12,9 @@ build:
 
 dist:
 	mkdir -p $(DIST_DIR)
-	GOOS=darwin  GOARCH=arm64 $(GO) build $(LDFLAGS) -o $(DIST_DIR)/rootinfo-darwin-arm64 .
-	GOOS=linux   GOARCH=amd64 $(GO) build $(LDFLAGS) -o $(DIST_DIR)/rootinfo-linux-amd64  .
+	GOOS=darwin  GOARCH=arm64 $(GO) build $(LDFLAGS) -o $(DIST_DIR)/rootinfo-darwin-arm64      .
+	GOOS=linux   GOARCH=amd64 $(GO) build $(LDFLAGS) -o $(DIST_DIR)/rootinfo-linux-amd64       .
+	GOOS=windows GOARCH=amd64 $(GO) build $(LDFLAGS) -o $(DIST_DIR)/rootinfo-windows-amd64.exe .
 
 test:
 	$(GO) test ./...
