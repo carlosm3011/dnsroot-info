@@ -30,8 +30,40 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "rootinfo",
-	Short: fmt.Sprintf("Check DNS root server anycast instance status\n(c) Carlos Martinez-Cagnazzo May 2026\nVersion: %s\n", Version),
-	RunE:  run,
+	Short: fmt.Sprintf("Check DNS root server anycast instance status (v%s)", Version),
+	Long: fmt.Sprintf(`rootinfo v%s — DNS root server anycast status checker
+(c) Carlos Martinez-Cagnazzo, May 2026
+
+For each of the 13 root servers (A–M), queries the anycast instance name via
+CHAOS TXT DNS (hostname.bind, falling back to id.server) and reports the
+responding node and round-trip time for both IPv4 and IPv6.
+
+Modes:
+  One-shot (default)   Query all servers once, print table, exit.
+  Continuous (-i sec)  Full-screen TUI that refreshes every N seconds.
+                       Press q or Ctrl-C to quit.
+  Fixed count          Add -c N to stop after N refreshes.
+
+Output formats (--format):
+  table   Human-readable aligned table with footer (default)
+  json    Newline-delimited JSON, one object per refresh
+  influx  InfluxDB Line Protocol (rootinfo_ipv4 / rootinfo_ipv6 measurements)
+
+The --output flag writes json or influx output to a file (appended). In
+continuous influx-to-file mode the TUI remains visible on screen while data
+accumulates in the file — useful for feeding Telegraf or bulk import.`, Version),
+	Example: `  rootinfo                          # one-shot table, all servers
+  rootinfo -i 5                     # continuous TUI, refresh every 5s
+  rootinfo -i 5 -c 10               # refresh 10 times then exit
+  rootinfo -s I,K,M                 # query only I, K, and M root servers
+  rootinfo -4                       # IPv4 results only
+  rootinfo --format json            # one-shot JSON to stdout
+  rootinfo --format json -i 10      # streaming JSON, one object per refresh
+  rootinfo --format influx -s A,B   # Line Protocol to stdout
+  rootinfo --format influx -i 30 --output /tmp/rootinfo.lp
+                                    # TUI on screen, influx appended to file
+  rootinfo --dns-server 9.9.9.9     # route queries through a specific resolver`,
+	RunE: run,
 }
 
 // Execute is the entry point called from main.
