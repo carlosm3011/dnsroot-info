@@ -14,11 +14,12 @@ type tickMsg struct{}
 
 // TUIConfig holds the parameters for a continuous TUI session.
 type TUIConfig struct {
-	Runner   *query.Runner
-	Interval time.Duration
-	MaxCount int
-	Opts     Options
-	Meta     Meta
+	Runner    *query.Runner
+	Interval  time.Duration
+	MaxCount  int
+	Opts      Options
+	Meta      Meta
+	OnRefresh func(results []query.Result, n int) // called after each query batch; optional
 }
 
 type tuiModel struct {
@@ -42,6 +43,9 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.results = []query.Result(msg)
 		m.querying = false
 		m.refresh++
+		if m.cfg.OnRefresh != nil {
+			m.cfg.OnRefresh(m.results, m.refresh)
+		}
 		if m.cfg.MaxCount > 0 && m.refresh >= m.cfg.MaxCount {
 			return m, tea.Quit
 		}

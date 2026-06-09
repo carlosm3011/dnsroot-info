@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"strings"
@@ -21,7 +22,8 @@ var (
 	timeoutMs  int
 	ipv4Only   bool
 	ipv6Only   bool
-	jsonOutput bool
+	format     string
+	outputFile string
 	dnsServer  string
 	serverList string
 )
@@ -45,7 +47,8 @@ func init() {
 	rootCmd.Flags().IntVarP(&timeoutMs, "timeout", "t", 2000, "per-query DNS timeout in milliseconds")
 	rootCmd.Flags().BoolVarP(&ipv4Only, "ipv4", "4", false, "show IPv4 results only")
 	rootCmd.Flags().BoolVarP(&ipv6Only, "ipv6", "6", false, "show IPv6 results only")
-	rootCmd.Flags().BoolVar(&jsonOutput, "json", false, "emit newline-delimited JSON (one object per refresh)")
+	rootCmd.Flags().StringVar(&format, "format", "table", `output format: table, json, or influx`)
+	rootCmd.Flags().StringVar(&outputFile, "output", "", "write output to this file (json and influx only; appends in continuous mode)")
 	rootCmd.Flags().StringVar(&dnsServer, "dns-server", "", "route all queries through this server (default: direct to root server IPs)")
 	rootCmd.Flags().StringVarP(&serverList, "servers", "s", "", `comma-separated root server letters to query, e.g. "I,K,M" (case-insensitive)`)
 }
@@ -53,6 +56,12 @@ func init() {
 func run(cmd *cobra.Command, args []string) error {
 	if ipv4Only && ipv6Only {
 		return fmt.Errorf("-4 and -6 are mutually exclusive")
+	}
+	if format != "table" && format != "json" && format != "influx" {
+		return fmt.Errorf("unknown format %q: must be table, json, or influx", format)
+	}
+	if outputFile != "" && format == "table" {
+		return fmt.Errorf("--output requires --format json or --format influx")
 	}
 
 	servers := rootservers.Filter(parseLetters(serverList))
@@ -64,7 +73,6 @@ func run(cmd *cobra.Command, args []string) error {
 		ShowIPv4: !ipv6Only,
 		ShowIPv6: !ipv4Only,
 	}
-
 	meta := render.Meta{
 		Author:    "Carlos Martinez-Cagnazzo",
 		Version:   Version,
@@ -78,11 +86,20 @@ func run(cmd *cobra.Command, args []string) error {
 		DNSServer: dnsServer,
 	}
 
+	w, closeW, err := openWriter(outputFile)
+	if err != nil {
+		return err
+	}
+	defer closeW()
+
 	if interval == 0 {
 		results := runner.Run()
-		if jsonOutput {
-			render.JSON(os.Stdout, results, 1, meta)
-		} else {
+		switch format {
+		case "json":
+			render.JSON(w, results, 1, meta)
+		case "influx":
+			render.Influx(w, results)
+		default:
 			render.Table(os.Stdout, results, opts, meta)
 		}
 		return nil
@@ -96,20 +113,47 @@ func run(cmd *cobra.Command, args []string) error {
 		Meta:     meta,
 	}
 
-	if jsonOutput {
-		return runJSONContinuous(runner, cfg)
+	switch format {
+	case "json":
+		return runStreamContinuous(runner, cfg, func(results []query.Result, n int) {
+			render.JSON(w, results, n, meta)
+		})
+	case "influx":
+		if outputFile != "" {
+			// TUI on screen; influx appended to file after each refresh.
+			cfg.OnRefresh = func(results []query.Result, n int) {
+				render.Influx(w, results)
+			}
+			return render.RunTUI(cfg)
+		}
+		return runStreamContinuous(runner, cfg, func(results []query.Result, n int) {
+			render.Influx(w, results)
+		})
+	default:
+		return render.RunTUI(cfg)
 	}
-	return render.RunTUI(cfg)
 }
 
-// runJSONContinuous runs queries in a loop and emits JSON to stdout.
-// It does not use the TUI since JSON output must remain machine-readable.
-func runJSONContinuous(runner *query.Runner, cfg render.TUIConfig) error {
+// openWriter returns a writer for the given path (append mode), or stdout if path is empty.
+func openWriter(path string) (io.Writer, func(), error) {
+	if path == "" {
+		return os.Stdout, func() {}, nil
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, func() {}, fmt.Errorf("opening output file: %w", err)
+	}
+	return f, func() { f.Close() }, nil
+}
+
+// runStreamContinuous runs queries in a loop, calling emit after each batch.
+// It does not use the TUI — output must remain machine-readable on stdout.
+func runStreamContinuous(runner *query.Runner, cfg render.TUIConfig, emit func([]query.Result, int)) error {
 	n := 0
 	for {
 		n++
 		results := runner.Run()
-		render.JSON(os.Stdout, results, n, cfg.Meta)
+		emit(results, n)
 		if cfg.MaxCount > 0 && n >= cfg.MaxCount {
 			return nil
 		}
