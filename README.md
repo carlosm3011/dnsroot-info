@@ -18,11 +18,24 @@ This tells you which anycast node your machine is reaching for each root server,
 Requires Go 1.22+.
 
 ```sh
-make        # produces ./rootinfo (stamped with current VERSION)
+make        # produces ./rootinfo for the current platform
 make test   # run unit tests
+make dist   # cross-compile for all supported platforms (see below)
 ```
 
 The version number is set via `VERSION` in the Makefile and stamped into the binary at build time. Running with `go run .` directly shows `dev`.
+
+### Distribution builds
+
+`make dist` produces three binaries in `dist/`:
+
+| File | Platform |
+|------|----------|
+| `rootinfo-darwin-arm64` | macOS — Apple Silicon (M-series) |
+| `rootinfo-linux-amd64` | Linux — x86-64 |
+| `rootinfo-windows-amd64.exe` | Windows — x86-64 (Terminal / PowerShell) |
+
+Each binary is stamped with the version, build date, and its target architecture, which appear in the table footer.
 
 ## Usage
 
