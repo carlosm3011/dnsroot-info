@@ -1,5 +1,5 @@
 BINARY     := rootinfo
-VERSION    := 0.2.2
+VERSION    := 0.3.0
 BUILD_DATE := $(shell date -u +%Y-%m-%d)
 GO         := go
 LDFLAGS    := -ldflags="-s -w -X rootinfo/cmd.Version=$(VERSION) -X rootinfo/cmd.BuildDate=$(BUILD_DATE)"
