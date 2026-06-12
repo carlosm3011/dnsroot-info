@@ -27,11 +27,12 @@ The version number is set via `VERSION` in the Makefile and stamped into the bin
 
 ### Distribution builds
 
-`make dist` produces three binaries in `dist/`:
+`make dist` produces four binaries in `dist/`:
 
 | File | Platform |
 |------|----------|
 | `rootinfo-darwin-arm64` | macOS — Apple Silicon (M-series) |
+| `rootinfo-darwin-amd64` | macOS — Intel |
 | `rootinfo-linux-amd64` | Linux — x86-64 |
 | `rootinfo-windows-amd64.exe` | Windows — x86-64 (Terminal / PowerShell) |
 
@@ -51,7 +52,15 @@ Each binary is stamped with the version, build date, and its target architecture
 ./rootinfo -i 5
 ```
 
-Press `q` or `Ctrl-C` to quit.
+Press `q` or `Ctrl-C` to quit. In TUI mode you can sort the table interactively:
+
+| Key | Sort |
+|-----|------|
+| `1` | Server letter (default) |
+| `2` | IPv4 RTT |
+| `3` | IPv6 RTT |
+
+Pressing the same key again toggles ascending/descending order.
 
 **Fixed count** — refresh 10 times then exit:
 
@@ -75,11 +84,18 @@ Press `q` or `Ctrl-C` to quit.
 **JSON output** — newline-delimited JSON, one object per refresh (works in both one-shot and continuous mode):
 
 ```sh
-./rootinfo --json
-./rootinfo -i 10 --json | jq .
+./rootinfo --format json
+./rootinfo -i 10 --format json | jq .
 ```
 
 Each JSON object includes `ipv4_rtt_ms` and `ipv6_rtt_ms` fields (omitted on error).
+
+**InfluxDB Line Protocol output** — one batch of measurements per refresh:
+
+```sh
+./rootinfo --format influx
+./rootinfo -i 10 --format influx --output metrics.lp
+```
 
 **Custom DNS server** — route all queries through a specific server instead of querying root server IPs directly:
 
@@ -97,7 +113,8 @@ Each JSON object includes `ipv4_rtt_ms` and `ipv6_rtt_ms` fields (omitted on err
 | `-4` | — | Show IPv4 results only |
 | `-6` | — | Show IPv6 results only |
 | `-s, --servers <list>` | all 13 | Comma-separated server letters, e.g. `I,K,M` |
-| `--json` | — | Emit newline-delimited JSON |
+| `--format <fmt>` | `table` | Output format: `table`, `json`, or `influx` |
+| `--output <file>` | — | Write output to file (`json`/`influx` only; appends in continuous mode) |
 | `--dns-server <addr>` | direct | Route queries through this server |
 
 ## How it works

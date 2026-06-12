@@ -35,7 +35,7 @@ To release a new version, update `VERSION` in the Makefile. The value is injecte
 ### Behavior modes
 
 - **One-shot** (`-i 0`, default): query all servers once, print output, exit.
-- **Continuous** (`-i <sec>`): full-screen TUI (like MTR), redraws every interval until `Ctrl-C` or `q`.
+- **Continuous** (`-i <sec>`): full-screen TUI (like MTR), redraws every interval until `Ctrl-C` or `q`. In TUI mode, press `1` to sort by server letter, `2` by IPv4 RTT, `3` by IPv6 RTT; pressing the active key again toggles asc/desc. Errors/timeouts sort last.
 - **Fixed count** (`-i <sec> -c <n>`): refresh n times then exit.
 - **Non-table continuous to stdout**: `--format json|influx -i <sec>` streams one batch per refresh to stdout (no TUI).
 - **Influx continuous to file**: `--format influx -i <sec> --output out.lp` runs TUI on screen and appends Line Protocol to the file after each refresh.
